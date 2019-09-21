@@ -42,107 +42,91 @@ class TestTreeClass:
     def test_empty_tree_creation(self):
         t = Tree()
         # empty tests
-        assert t.is_empty()
+        assert t.is_empty() and len(t) == 0
         # key lookup failure
         with pytest.raises(KeyError):
             ignored = t['foo']
 
-        # Key errors on methods
-        for name in ['parent', 'children', 'ancestors', 'path'
+        # Key errors on methods lookup methods
+        for name in ['parent', 'children', 'ancestors', 'path',
                      'siblings']:
-            attr = getattr(t, name)
+            method = getattr(t, name)
             with pytest.raises(KeyError):
-                ignored = attr('foo')
-
-        assert (
-                t.leafs() == [] and
-                len(t) == 0 and
-                list(t.inorder()) == [] and
-                list(t.postorder()) == [] and
-                list(t.preorder()) == [] and
-                list(t.bfs()) == []
-        )
+                ignored = method('foo')
+        # Empty list return for method returning sequences or iterables
+        for name in ['leaves', 'inorder', 'postorder', 'preorder',
+                     'levelorder']:
+            method = getattr(t, name)
+            assert list(method()) == []
 
     def test_root_creation(self):
-        t = Tree(key='foo', value=100)  # Single node tree
+        key, value = 'foo', 100
+        t = Tree(key=key, value=value)  # Single node tree
         assert (
-                t['foo'] == t[t.root_key] == t.root_value == 100 and
-                'foo' in t and
-                t.is_leaf(key='foo') and
-                t.is_root(key='foo') and
-                t.parent(key='foo') is EMPTY and
-                t.children(key='foo') == [] and
-                t.siblings(key='foo') == [] and
-                t.ancestors(key='foo') == [] and
-                t.path(key='foo') == ['foo'] and
-                t.leaves() == [100] and
+                t.root_key == key and
+                t.root_value == t[key] == value and
+                key in t and
+                t.is_leaf(key=key) and
+                t.is_root(key=key) and
+                t.parent(key=key) is EMPTY and
+                t.children(key=key) == [] and
+                t.siblings(key=key) == [] and
+                t.ancestors(key=key) == [] and
+                t.path(key=key) == [value] and
+                t.leaves() == [value] and
                 len(t) == 1 and
-                list(t.inorder()) == [100] and
-                list(t.postorder()) == [100] and
-                list(t.preorder()) == [100] and
-                list(t.bfs()) == [100]
+                list(t.inorder()) == [value] and
+                list(t.postorder()) == [value] and
+                list(t.preorder()) == [value] and
+                list(t.levelorder()) == [value]
         )
 
     def test_appending_to_root_node(self):
+        root_key, root_value = 'foo', 100
         t = Tree()
-        t.append(key='foo', value=100)  # Add root node
-        t2 = Tree(key='foo', value=100)  # Create with a root node
+        t.append(key=root_key, value=root_value)  # Add root node
+        t2 = Tree(key=root_key, value=root_value)  # Create with a root node
         assert t == t2
         # Add two children to root
         children = [('bar', 101), ('baz', 201)]
         for k, v in children:
             t.append(key=k, value=v)  # Add child to root
-        assert t.siblings('bar') == [201]
-        assert t.siblings('baz') == [202]
+        assert t.siblings(children[0][0]) == children[1][1]
+        assert t.siblings(children[1][0]) == children[0][1]
         # check ancestry
         for k, v in children:
             assert t.parent(key=k) == t.root_value
-            assert t.ancestors(key=k) == t.root_value
+            assert t.ancestors(key=k) == [t.root_value]
             assert t.path(key=k) == [t.root_value, t[k]]
             assert t[k] == v
 
         assert t.leaves() == [v for _, v in children]
         assert len(t) == len(t.leaves()) + 1
+        inorder = t.inorder()
+        inorder = t.inorder()
 
         assert (
-            not t.is_leaf('foo') and
-            list(t.inorder()) == t.leaves()[0] + [t.root_value] + t.leaves()[1:] and
-            list(t.postorder()) == t.leaves() + [t.root_value] and
-            list(t.preorder()) == [t.root_value] + t.leaves() and
-            list(t.bfs()) == [t.root_value] + t.leaves()
+                not t.is_leaf('foo') and
+                list(t.inorder()) == [t.leaves()[0], t.root_value, t.leaves()[1]] and
+                list(t.postorder()) == [*t.leaves(), t.root_value] and
+                list(t.preorder()) == [t.root_value, *t.leaves()] and
+                list(t.levelorder()) == [t.root_value, *t.leaves()]
         )
         # Extending children
-        t2 = Tree(key=t.root_key, value=t.root_value)  # Create with a root node
-        t2.extend(children=children)  # Takes iterable of pairs
-        assert t2 == t
-
-    def test_ancestry(self):
-        t = Tree(key='foo', value=100)
-        t.extend(children=[('bar', 101), ('baz', 201)])
-        t.append(key='spam', value=301, parent='baz')
+        t3 = Tree(key=t.root_key, value=t.root_value)  # Create with a root node
+        t3.extend(children=children)  # Takes iterable of pairs
+        assert t3 == t
+        old_leaf_key = children[0][0]
+        new_child_key, new_child_value = 'ham', 401
+        t.append(key=new_child_key, value=new_child_value, parent=old_leaf_key)
         assert (
-                t.is_leaf(key='bar') and
-                not t.is_leaf(key='baz') and
-                t.parent(key='bar') == 100 and
-                t.parent(key='spam') == 201 and
-                t.children(key='foo') == [101, 201] and
-                t.ancestors(key='spam') == [201, 100] and
-                t.path(key='spam') == [100, 201, 301] and
-                t.leaves == [101, 301] and
+                not t.is_leaf(key=old_leaf_key) and
+                t.ancestors(key=new_child_key) == [t[old_leaf_key],
+                                                   *t.ancestors(key=old_leaf_key)] and
+                t.path(key=new_child_key) == [*t.path(key=old_leaf_key),
+                                              t[new_child_key]] and
                 list(t.inorder()) == [101, 100, 301, 201] and
                 list(t.postorder()) == [101, 301, 201, 100] and
                 list(t.preorder()) == [100, 101, 201, 301] and
                 list(t.bfs()) == [100, 101, 201, 301]
         )
-
-    def test_attach_subtrees(self):
-        ...
-
-    def test_adding_nodes(self):
-        ...
-
-    def test_querying_the_tree(self):
-        ...
-
-    def test_traversals(self):
-        ...

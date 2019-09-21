@@ -109,7 +109,8 @@ class Tree:
 
         return list(deq)
 
-    def append(self, key: str, value: Any, parent: str = None):
+    def append(self, key: str, value: Any,
+               parent: str = None) -> None:
         """Adds a child node to the root node.
 
         Args:
@@ -122,13 +123,13 @@ class Tree:
         self._nodes[key] = _Node(value, parent)
         self._children[self.root_key].append(key)
 
-    def children(self, key: str):
+    def children(self, key: str) -> list:
         """Return the list of child nodes."""
         self.verify_key_in(key)
         return [self[child_key] for child_key in self._children[key]]
 
     def extend(self, children: Iterable[Tuple[str, Any]],
-               parent: str = None):
+               parent: str = None) -> None:
         """Adds a child node to the root node.
 
         Args:
@@ -138,16 +139,16 @@ class Tree:
         for key, value in children:
             self.append(key, value, parent)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """True if tree is empty, else false."""
         return self.root_value is EMPTY
 
-    def is_root(self, key: str):
+    def is_root(self, key: str) -> bool:
         """Returns true if given key is root_key"""
         self.verify_key_in(key)
         return key == self.root_key
 
-    def leaves(self):
+    def leaves(self) -> list:
         """Return values of those nodes that have no children."""
         return [
             self[key] for key in self._nodes
@@ -156,7 +157,7 @@ class Tree:
 
     leafs = leaves
 
-    def parent(self, key: str):
+    def parent(self, key: str) -> Any:
         """Return the value of the parent node"""
         parent_key = self._nodes[key].parent
         return self._nodes[parent_key].value
@@ -230,6 +231,15 @@ class Tree:
                 key = deq.popleft()
                 yield self[key]
                 deq.extend(self._children[key])
+
+    def siblings(self, key: str) -> list:
+        """Return the list of child nodes."""
+        self.verify_key_in(key)
+        if key == self.root_key:
+            return []
+        siblings = self.children[self._nodes[key].parent]
+        siblings.remove(self[key])
+        return siblings
 
     def verify_key_in(self, key: str) -> None:
         """Raise KeyError if key missing.
