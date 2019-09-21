@@ -171,21 +171,20 @@ class Tree:
         # The call to `ancestors` check for key errors.
         return self.ancestors(key, reverse=True) + [self[key]]
 
-    def preorder(self, visitor: Callable, start_key: str = None):
+    def preorder(self, start_key: str = None):
         """Visits each node in "preorder" and call the visit
         function.
 
         Args:
-            visitor (Callable): function called on the visted nodes
             start_key (str): the key of the node to start the traversal
         """
         start_key = start_key or self.root_key
         if start_key in self:
-            visitor(self[start_key])
+            yield self[start_key]
             for child in self._children[start_key]:
-                self.preorder(visitor, start_key=child)
+                self.preorder(start_key=child)
 
-    def postorder(self, visitor: Callable, start_key=None):
+    def postorder(self, start_key=None):
         """Visits each node in "postorder" and call the visit
         function.
 
@@ -196,15 +195,14 @@ class Tree:
         start_key = start_key or self.root_key
         if start_key in self:
             for child in self._children[start_key]:
-                self.postorder(visitor, start_key=child)
-            visitor(self[start_key])
+                self.postorder(start_key=child)
+            yield self[start_key]
 
-    def inorder(self, visitor: Callable, start_key=None):
+    def inorder(self, start_key=None):
         """Visits each node in "inorder" and call the visit
         function.
 
         Args:
-            visitor (Callable): function called on the visted nodes
             start_key (str): the key of the node to start the traversal
         """
         start_key = start_key or self.root_key
@@ -212,18 +210,17 @@ class Tree:
             first = self._children[start_key][0:1]
             rest = self._children[start_key][1:]
             if first:
-                self.inorder(visitor, start_key=first[0])
+                self.inorder(start_key=first[0])
 
-            visitor(self[start_key])
+            yield self[start_key]
             for child in rest:
-                self.inorder(visitor, start_key=child)
+                self.inorder(start_key=child)
 
-    def levelorder(self, visitor: Callable, start_key=None):
+    def levelorder(self, start_key=None):
         """Visits each node in "levelorder" and call the visit
         function.
 
         Args:
-            visitor (Callable): function called on the visted nodes
             start_key (str): the key of the node to start the traversal
         """
         start_key = start_key or self.root_key
@@ -231,7 +228,7 @@ class Tree:
             deq = deque([start_key])
             while deq:
                 key = deq.popleft()
-                visitor(self[key])
+                yield self[key]
                 deq.extend(self._children[key])
 
     def verify_key_in(self, key: str) -> None:

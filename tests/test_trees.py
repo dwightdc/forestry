@@ -38,16 +38,16 @@ from forestry.trees import _Node, Tree, EMPTY
 # Helpers
 # Fixtures
 # Unit Tests
-
 class TestTreeClass:
     def test_empty_tree_creation(self):
         t = Tree()
         # empty tests
         assert t.is_empty()
-        # key lookup
+        # key lookup failure
         with pytest.raises(KeyError):
             ignored = t['foo']
 
+        # Key errors on methods
         for name in ['parent', 'children', 'ancestors', 'path'
                      'siblings']:
             attr = getattr(t, name)
