@@ -38,25 +38,6 @@ from forestry.trees import _Node, Tree, EMPTY
 # Helpers
 # Fixtures
 # Unit Tests
-class Test_NodeClass:
-    def test_normal_creation(self):
-        assert _Node(value=100, parent='foo') == (100, 'foo')
-
-    def test_creation_with_defaults(self):
-        assert _Node(value=200) == (200, EMPTY)
-
-    def test_bad_creation(self):
-        with pytest.raises(TypeError):
-            # Missing value!
-            _Node(parent='bar')
-        with pytest.raises(TypeError):
-            # Missing value!
-            _Node()
-
-    def test_attribute_access(self):
-        n = _Node(value=100, parent='foo')
-        assert n.value == 100 and n.parent == 'foo'
-
 
 class TestTreeClass:
     def test_empty_tree_creation(self):
