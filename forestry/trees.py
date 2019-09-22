@@ -11,7 +11,8 @@
 # Standard library imports
 from collections import defaultdict, deque
 from typing import (
-    Any, NamedTuple, Optional, Dict, Union, Iterable, Tuple, Callable
+    Any, NamedTuple, Optional, Dict, Union, Iterable, Tuple, Callable,
+    Generator
 )
 
 # Third-party module imports
@@ -28,7 +29,17 @@ class _Node(NamedTuple):
     An internal helper class supporting Tree class definition
     """
     value: Any  # The data stored at the node
+    level: int = 1  # The depth level of the node in the tree
     parent: Union[str, object] = EMPTY  # The key (tag, label) of parent
+
+
+class _TreeInfo(NamedTuple):
+    """Provide names for tree info attributes"""
+    root: Union[Tuple, object]  # Key and value of root node
+    size: int  # size or len of tree
+    n_leaves: int  # number of leaves
+    degree: int  # number of children of root node
+    height: int  # maximum level of any node in the tree
 
 
 class Tree:
@@ -43,30 +54,27 @@ class Tree:
     nodes' tags.
 
     Examples:
-        >>> t = Tree(value=1, tag='a')
+        >>> t = Tree(key='a', value=1)
         >>> assert t['a'] == 1
-        >>> t.add(value=2, tag='b')  # Adds a child to the root node by default
+        >>> t.append(key='b', value=2)  # Adds a child to the root node by default
         >>> assert t['b'] == 2
-        >>> t.add(value=3, tag='c')  # Add a child to the root node
-        >>> t('b')
-        <Tree; value=1; tag='b'>
-        >>> t('c').parent == 1
-        >>> t('a').children == [1, 2]
-        >>> t('b').add(value=4, tag='d')  # Add a child node to node (sub-tree) at 'b'
-        >>> assert t('d').ancestors == [2, 1]
-        >>> assert t('d').path == [1, 2, 4]  # Traverse from root to node
+        >>> t.append(key='c', value=3)  # Add a child to the root node
+        >>> t.parent(key='c') == 1
+        >>> t.children(key='a') == [2, 3]
+        >>> t.append(key='d', value=4, parent='b')  # Add a child node to node (sub-tree) at 'b'
+        >>> assert t.ancestors(key='d') == [2, 1]
+        >>> assert t.path(key='d') == [1, 2, 4]  # Traverse from root to node
 
     t.preorder() t.inorder() t.postorder() return iterables over the node values
 
     Attributes:
-        _root (str): tag of root node
-        _nodes (Dict[str, _Node]): Mapping from node tags to node data
-        _children (defaultdict): Mapping from node tags to children
+        root_key (str): key of root node
+        root_value (Any): value of root node
     """
 
     version = '0.1'  # Version number of class
 
-    def __init__(self, key: Optional[str] = None,
+    def __init__(self, key: Union[str, object] = EMPTY,
                  value: Any = EMPTY) -> None:
         """This method initializes instance variables.
 
@@ -84,13 +92,24 @@ class Tree:
     def __getitem__(self, item) -> Any:
         return self._nodes[item].value
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._nodes)
+
+    def __repr__(self):
+        """<Tree; root=('abc', 1); size=9>"""
+        cls_name = type(self).__name__
+        if self.is_empty():
+            return f'<{cls_name}; root=EMPTY; size=0>'
+        return (
+            f'<{cls_name}; root=({self.root_key!r}, {self.root_value!r}); '
+            f'size={len(self)}>'
+
+        )
 
     @property
     def root_value(self) -> Union[Any, object]:
         """Return the value stored at root"""
-        return self._nodes.get(self.root_key, EMPTY)
+        return self[self.root_key]
 
     def ancestors(self, key: str, reverse: bool = False) -> list:
         """Returns a list of parent and recursive parents.
@@ -99,7 +118,7 @@ class Tree:
             key (str): the key whose ancestors are returned
             reverse (bool): build ancestry from the root down
         """
-        self.verify_key_in(key)
+        self._verify_present(key)
         deq = deque()
         current_key = key
         while not self.is_root(current_key):
@@ -110,7 +129,7 @@ class Tree:
         return list(deq)
 
     def append(self, key: str, value: Any,
-               parent: str = None) -> None:
+               parent: str = EMPTY) -> None:
         """Adds a child node to the root node.
 
         Args:
@@ -118,14 +137,16 @@ class Tree:
             value (Any): The data value stored at the node.
             parent (str): The parent to append the child to
         """
-        parent = parent or self.root_key
-        self.verify_key_out(key)
-        self._nodes[key] = _Node(value, parent)
-        self._children[self.root_key].append(key)
+        parent = parent if parent is not EMPTY else self.root_key
+        self._verify_absent(key)
+        self._verify_present(parent)
+        level = self.level(parent) + 1
+        self._nodes[key] = _Node(value, level, parent)
+        self._children[parent].append(key)
 
     def children(self, key: str) -> list:
         """Return the list of child nodes."""
-        self.verify_key_in(key)
+        self._verify_present(key)
         return [self[child_key] for child_key in self._children[key]]
 
     def extend(self, children: Iterable[Tuple[str, Any]],
@@ -139,13 +160,51 @@ class Tree:
         for key, value in children:
             self.append(key, value, parent)
 
+    # def __repr__(self, level=0):
+    #     result = '\t|__'+repr(self.root_value) + '\n'
+    #     for child in self.children(key=self.root_key):
+    def display(self):
+        """Present a hierarchical display of the tree"""
+        print()
+        print(self.info())
+        for value, level in self.preorder(levels=True):
+            if level == 1:
+                print(repr(value))
+                continue
+
+            print('\t' * (level - 1) + '|__ ' + repr(value))
+
+    def info(self):
+        """Return a named tuple of tree information"""
+        if self.is_empty():
+            return _TreeInfo(
+                root=EMPTY,
+                size=0,
+                n_leaves=0,
+                degree=0,
+                height=0
+            )
+
+        return _TreeInfo(
+            root=(self.root_key, self.root_value),
+            size=len(self),
+            n_leaves=len(self.leaves()),
+            degree=len(self.children(key=self.root_key)),
+            height=max(n.level for n in self._nodes.values())
+        )
+
     def is_empty(self) -> bool:
         """True if tree is empty, else false."""
-        return self.root_value is EMPTY
+        return self.root_key is EMPTY
+
+    def is_leaf(self, key: str) -> bool:
+        """True if tree is empty, else false."""
+        self._verify_present(key)
+        return self.children(key) == []
 
     def is_root(self, key: str) -> bool:
         """Returns true if given key is root_key"""
-        self.verify_key_in(key)
+        self._verify_present(key)
         return key == self.root_key
 
     def leaves(self) -> list:
@@ -157,9 +216,16 @@ class Tree:
 
     leafs = leaves
 
+    def level(self, key: str) -> int:
+        """Return 1 + the number of edges between a node and the root"""
+        # return len(self.path(key))
+        return self._nodes[key].level
+
     def parent(self, key: str) -> Any:
         """Return the value of the parent node"""
         parent_key = self._nodes[key].parent
+        if parent_key is EMPTY:
+            return EMPTY
         return self._nodes[parent_key].value
 
     def path(self, key: str) -> list:
@@ -172,84 +238,138 @@ class Tree:
         # The call to `ancestors` check for key errors.
         return self.ancestors(key, reverse=True) + [self[key]]
 
-    def preorder(self, start_key: str = None):
-        """Visits each node in "preorder" and call the visit
-        function.
+    def preorder(self,
+                 start_key: str = None,
+                 levels: bool = False,
+                 verify_start_key: bool = False) -> Generator:
+        """pre order traversal"""
+        yield from self._traverse('preorder', start_key, levels, verify_start_key)
 
-        Args:
-            start_key (str): the key of the node to start the traversal
-        """
-        start_key = start_key or self.root_key
-        if start_key in self:
-            yield self[start_key]
-            for child in self._children[start_key]:
-                self.preorder(start_key=child)
+    def postorder(self,
+                  start_key: str = None,
+                  levels: bool = False,
+                  verify_start_key: bool = False) -> Generator:
+        """post order traversal"""
+        yield from self._traverse('postorder', start_key, levels, verify_start_key)
 
-    def postorder(self, start_key=None):
-        """Visits each node in "postorder" and call the visit
-        function.
+    def inorder(self,
+                start_key: str = None,
+                levels: bool = False,
+                verify_start_key: bool = False) -> Generator:
+        """in order traversal"""
+        yield from self._traverse('inorder', start_key, levels, verify_start_key)
 
-        Args:
-            visitor (Callable): function called on the visted nodes
-            start_key (str): the key of the node to start the traversal
-        """
-        start_key = start_key or self.root_key
-        if start_key in self:
-            for child in self._children[start_key]:
-                self.postorder(start_key=child)
-            yield self[start_key]
-
-    def inorder(self, start_key=None):
-        """Visits each node in "inorder" and call the visit
-        function.
-
-        Args:
-            start_key (str): the key of the node to start the traversal
-        """
-        start_key = start_key or self.root_key
-        if start_key in self:
-            first = self._children[start_key][0:1]
-            rest = self._children[start_key][1:]
-            if first:
-                self.inorder(start_key=first[0])
-
-            yield self[start_key]
-            for child in rest:
-                self.inorder(start_key=child)
-
-    def levelorder(self, start_key=None):
-        """Visits each node in "levelorder" and call the visit
-        function.
-
-        Args:
-            start_key (str): the key of the node to start the traversal
-        """
-        start_key = start_key or self.root_key
-        if start_key in self:
-            deq = deque([start_key])
-            while deq:
-                key = deq.popleft()
-                yield self[key]
-                deq.extend(self._children[key])
+    def levelorder(self,
+                   start_key: str = None,
+                   levels: bool = False,
+                   verify_start_key: bool = False) -> Generator:
+        """level order traversal"""
+        yield from self._traverse('levelorder', start_key, levels, verify_start_key)
 
     def siblings(self, key: str) -> list:
-        """Return the list of child nodes."""
-        self.verify_key_in(key)
+        """Return the list of child nodes of parent."""
+        self._verify_present(key)
         if key == self.root_key:
             return []
-        siblings = self.children[self._nodes[key].parent]
-        siblings.remove(self[key])
-        return siblings
+        siblings = self._children[self._nodes[key].parent]
+        return [self[k] for k in siblings if k != key]
 
-    def verify_key_in(self, key: str) -> None:
+    ##
+    # Helpers
+    ##
+    def _preorder(self, start_key) -> Generator:
+        """Helper function visits each node in "preorder".
+
+        Args:
+            start_key (str): the key of the node to start the traversal
+        """
+        yield start_key
+        for child in self._children[start_key]:
+            yield from self._preorder(start_key=child)
+
+    def _postorder(self, start_key) -> Generator:
+        """Helper which visits each node in "postorder".
+
+        Args:
+            start_key (str): the key of the node to start the traversal
+        """
+        for child in self._children[start_key]:
+            yield from self._postorder(start_key=child)
+        yield start_key
+
+    def _inorder(self, start_key) -> Generator:
+        """Helper which visits each node in "inorder" and call the visit
+        function.
+
+        Args:
+            start_key (str): the key of the node to start the traversal
+        """
+        first = self._children[start_key][0:1]
+        rest = self._children[start_key][1:]
+        if first:
+            yield from self._inorder(start_key=first[0])
+
+        yield start_key
+        for child in rest:
+            yield from self._inorder(start_key=child)
+
+    # def _inorder(self, start_key):
+    #     """Visits each node in "inorder" and call the visit
+    #     function.
+    #
+    #     Args:
+    #         start_key (str): the key of the node to start the traversal
+    #     """
+    #     if self.is_leaf(start_key):
+    #         yield self[start_key]
+    #         return
+    #
+    #     first, *rest = self._children[start_key]
+    #     yield from self._inorder(start_key=first)
+    #     yield self[start_key]
+    #     for child in rest:
+    #         yield from self._inorder(start_key=child)
+
+    def _levelorder(self, start_key) -> Generator:
+        """Helper which visits each node in "levelorder".
+
+        Args:
+            start_key (str): the key of the node to start the traversal
+        """
+        deq = deque([start_key])
+        while deq:
+            key = deq.popleft()
+            yield key
+            deq.extend(self._children[key])
+
+    def _traverse(self, order: str,
+                  start_key: str = None,
+                  levels: bool = False,
+                  verify_start_key: bool = False) -> Generator:
+        """Helper function to traverse the tree"""
+        start_key = start_key or self.root_key
+        if verify_start_key:
+            self._verify_present(start_key)
+
+        if start_key not in self:
+            return
+
+        traverse_order = getattr(self, '_' + order)
+        for key in traverse_order(start_key):
+            if levels:
+                yield (self[key], self.level(key))
+            else:
+                yield self[key]
+
+    def _verify_present(self, key: str) -> None:
         """Raise KeyError if key missing.
         Args:
             key (str): the key to verify
         """
         if key not in self:
-            raise KeyError(f'Key "{key}" already added')
+            raise KeyError(f'Key "{key}" was never added')
 
-    def verify_key_out(self, key: str) -> None:
+    def _verify_absent(self, key: str) -> None:
         """Raise KeyError if key present.
         Args:
             key (str): the key to verify

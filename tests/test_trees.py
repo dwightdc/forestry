@@ -9,10 +9,13 @@
 """Unit tests for module trees.py"""
 
 # Python Standard Library imports
+from collections import namedtuple, deque
+import random
+from uuid import uuid4
 # Third-party library imports
 import pytest
-# Import contents of module tested
-from forestry.trees import _Node, Tree, EMPTY
+# Import contents of module being tested
+from forestry.trees import Tree, EMPTY
 
 ##~ Common Snippets
 """
@@ -34,52 +37,199 @@ from forestry.trees import _Node, Tree, EMPTY
                        
 """
 
-
 # Helpers
+Node = namedtuple('Node', 'key value')
+MAXINT = 100_000_000_000
+
+
 # Fixtures
+@pytest.fixture(scope='function')
+def get_random_nodes_gen():
+    """Returns a function which returns a sequence of random nodes."""
+
+    def _get_random_nodes(n_nodes):
+        for ignored in range(n_nodes):
+            rand_key = str(uuid4())
+            rand_value = random.randint(0, MAXINT)
+            yield Node(rand_key, rand_value)
+
+    return _get_random_nodes
+
+
+@pytest.fixture(scope='function')
+def get_random_nodes_list():
+    """Returns a function which returns a sequence of random nodes."""
+
+    def _get_random_nodes(n_nodes):
+        random_nodes = []
+        for ignored in range(n_nodes):
+            rand_key = str(uuid4())
+            rand_value = random.randint(0, MAXINT)
+            random_nodes.append(Node(rand_key, rand_value))
+
+        return random_nodes
+
+    return _get_random_nodes
+
+
+@pytest.fixture(scope='function')
+def random_node(get_random_nodes_gen):
+    """Returns a single random node."""
+    return next(get_random_nodes_gen(1))
+    # rand_key = str(uuid4())
+    # rand_value = random.randint(0, MAXINT)
+    # return Node(rand_key, rand_value)
+
+
+@pytest.fixture(scope='module')
+def empty_tree():
+    """Return tree with no nodes"""
+    return Tree()
+
+
+@pytest.fixture(scope='function')
+def single_node_tree(random_node):
+    """Return tree with a single node and its key value pair"""
+    t = Tree(key=random_node.key, value=random_node.value)
+    return t, random_node
+
+
+@pytest.fixture(scope='function')
+def multi_level_tree(get_random_nodes_list):
+    """Return multi level tree.
+
+    Randomize arity per node to make for a varied tree
+    each time
+    """
+    # arity = random.randint(1, 4)
+    # n_levels = random.randint(2, 100)
+    # n_nodes = sum(arity ** level for level in range(n_levels))
+    n_nodes = random.randint(3, 100)
+    random_nodes = get_random_nodes_list(n_nodes)
+    first_node = random_nodes[0]
+    t = Tree(key=first_node.key, value=first_node.value)
+    queue = deque()
+    enqueue = queue.append
+    dequeue = queue.popleft
+    current_arity = 0
+    target_arity = random.randint(1, 10)
+    assert current_arity <= target_arity
+    target_node_key = first_node.key
+    # print()
+    for node in random_nodes[1:]:  # Remaining nodes after first
+        # print([t[e] for e in queue])
+        if current_arity < target_arity:
+            t.append(key=node.key, value=node.value, parent=target_node_key)
+            enqueue(node.key)
+            current_arity += 1
+            continue
+
+        target_node_key = dequeue()
+        t.append(key=node.key, value=node.value, parent=target_node_key)
+        enqueue(node.key)
+        current_arity = 1
+        target_arity = random.randint(1, 10)
+
+    return t, random_nodes
+
+
+@pytest.fixture(scope='function')
+def multi_level_tree2(get_random_nodes_list):
+    """Return multi level tree.
+
+    Randomize arity per node to make for a varied tree
+    each time
+    """
+    deq = deque()
+    random_nodes = get_random_nodes_list(random.randint(3, 25))
+    first_node = random_nodes[0]
+    t = Tree(key=first_node.key, value=first_node.value)
+    target_node_key = first_node.key
+    for node in random_nodes[1:]:
+        t.append(key=node.key, value=node.value, parent=target_node_key)
+        deq.append(node.key)
+        # flip a coin to keep the same target node or change targets
+        if random.randint(0, 2) == 1:  # change target
+            target_node_key = deq.popleft()
+
+    return t, random_nodes
+
+
+# add the root
+# target = root
+# arity = 0
+# for node in nodes:
+#   if arit < 2:
+#       add node
+#       enque node
+#       arity+= 1
+#       continue
+#
+#   target = deque(q)
+#   arity = 0
+#
+#
+#   if current_arity == 2
+#     target = dequeue(q)
+#     add to target
+#     push node to q
+#     curent_arity = 1
+#     continue
+#
+#   add to target
+#   push node to q
+#   curent_arity += 1
+
+
 # Unit Tests
 class TestTreeClass:
-    def test_empty_tree_creation(self):
-        t = Tree()
+    def test_empty_tree(self, empty_tree, random_node):
         # empty tests
-        assert t.is_empty() and len(t) == 0
+        assert empty_tree.is_empty() and len(empty_tree) == 0
         # key lookup failure
         with pytest.raises(KeyError):
-            ignored = t['foo']
+            ignored = empty_tree[random_node.key]
 
         # Key errors on methods lookup methods
-        for name in ['parent', 'children', 'ancestors', 'path',
+        for name in ['ancestors', 'children', 'level', 'parent', 'path',
                      'siblings']:
-            method = getattr(t, name)
+            method = getattr(empty_tree, name)
             with pytest.raises(KeyError):
-                ignored = method('foo')
+                ignored = method(random_node.key)
         # Empty list return for method returning sequences or iterables
         for name in ['leaves', 'inorder', 'postorder', 'preorder',
                      'levelorder']:
-            method = getattr(t, name)
+            method = getattr(empty_tree, name)
             assert list(method()) == []
 
-    def test_root_creation(self):
-        key, value = 'foo', 100
-        t = Tree(key=key, value=value)  # Single node tree
+    def test_single_node_tree(self, single_node_tree):
+        t, node = single_node_tree
         assert (
-                t.root_key == key and
-                t.root_value == t[key] == value and
-                key in t and
-                t.is_leaf(key=key) and
-                t.is_root(key=key) and
-                t.parent(key=key) is EMPTY and
-                t.children(key=key) == [] and
-                t.siblings(key=key) == [] and
-                t.ancestors(key=key) == [] and
-                t.path(key=key) == [value] and
-                t.leaves() == [value] and
-                len(t) == 1 and
-                list(t.inorder()) == [value] and
-                list(t.postorder()) == [value] and
-                list(t.preorder()) == [value] and
-                list(t.levelorder()) == [value]
+                t.root_key == node.key
+                and t.root_value == t[node.key] == node.value
+                and node.key in t
+                and t.is_leaf(key=node.key)
+                and t.is_root(key=node.key)
+                and t.level(key=node.key) == 1
+                and t.parent(key=node.key) is EMPTY
+                and t.children(key=node.key) == []
+                and t.siblings(key=node.key) == []
+                and t.ancestors(key=node.key) == []
+                and t.path(key=node.key) == [node.value]
+                and t.leaves() == [node.value]
+                and len(t) == 1
+                and list(t.inorder()) == [node.value]
+                and list(t.postorder()) == [node.value]
+                and list(t.preorder()) == [node.value]
+                and list(t.levelorder()) == [node.value]
         )
+
+    def test_multi_level_tree(self, multi_level_tree2):
+        t, nodes = multi_level_tree2
+        print()
+        print('tree=', t)
+        print('nodes=', [v.value for v in nodes])
+        t.display()
 
     def test_appending_to_root_node(self):
         root_key, root_value = 'foo', 100
