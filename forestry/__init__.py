@@ -1,1 +1,1 @@
-from trees import Tree, EMPTY
+from forestry.trees import Tree, EMPTY
