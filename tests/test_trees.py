@@ -11,7 +11,7 @@
 # Third-party library imports
 import pytest
 # Imports for code being tested
-from forestry.trees import Tree, EMPTY
+from forestry import Tree, EMPTY
 
 
 ##

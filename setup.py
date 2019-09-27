@@ -11,7 +11,7 @@ setup(
     # Also the name that appears in the top banner with version
     name='forestry',
     version='0.0.1',
-    # Identifies the code base by identify the top level packages
+    # Identifies the code base by identifying the top level packages
     packages=['forestry'],
     # Appears in project links
     url='https://github.com/dwightdc/forestry',
@@ -20,7 +20,7 @@ setup(
     author='Dwight D. Cummings',
     author_email='dwight.cummings@yahoo.com',
     # Description appears in the second grey banner
-    description='The new workflow demonstration project',
+    description='Python Tree data structures and tools.',
     # Appears in the right pane
     long_description=readme(),
     long_description_content_type='text/markdown',

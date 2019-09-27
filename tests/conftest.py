@@ -16,7 +16,7 @@ from uuid import uuid4  # for random string generation
 # Third-party library imports
 import pytest
 # Imports for code being tested
-from forestry.trees import Tree
+from forestry import Tree
 
 # Helpers
 Node = namedtuple('Node', 'key value')  # Key-value pairs to simulate node data
