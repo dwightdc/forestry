@@ -5,18 +5,13 @@ Python Tree data structures and tools.
 Install `forestry` with python's `pipenv` or `pip` package managers.
 ```console
 $ pipenv install forestry
-Adding forestry to Pipfile's [packages]…
-✔ Installation Succeeded
-…
 ```
 ```console
 $ pip install forestry
-…
 ```
 
 # Getting Started
 ```
->>>
 >>> t = Tree(key='a', value=1)
 >>> assert t['a'] == 1
 >>> t.append(key='b', value=2)  # Adds a child to the root node by default

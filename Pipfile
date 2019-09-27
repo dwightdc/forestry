@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 pytest = "*"
 pytest-cov = "*"
+twine = "*"
 
 [packages]
 forestry = {editable = true,path = "."}
