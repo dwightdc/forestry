@@ -56,6 +56,7 @@ class Tree:
     nodes' tags.
 
     Examples:
+        >>> from forestry import Tree
         >>> t = Tree(key='a', value=1)
         >>> assert t['a'] == 1
         >>> t.append(key='b', value=2)  # Adds a child to the root node by default
