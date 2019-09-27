@@ -11,7 +11,7 @@
 # Third-party library imports
 import pytest
 # Imports for code being tested
-from forestry import Tree, EMPTY
+from forestry.trees import Tree, EMPTY
 
 
 ##
@@ -44,6 +44,13 @@ def test_empty_tree(random_node):
             and empty_tree.info().degree == 0
             and empty_tree.info().height == 0
     )
+    # Test adding to empty tree
+    with pytest.raises(ValueError):
+        empty_tree.append('foo', 1, parent='bar')
+
+    empty_tree.append('foo', 1)
+    print(empty_tree)
+
 
 
 def test_single_node_tree(single_node_tree):

@@ -140,6 +140,15 @@ class Tree:
             value (Any): The data value stored at the node.
             parent (str): The parent to append the child to
         """
+        if self.is_empty() and parent is not EMPTY:
+            msg = 'Cannot append to parent node in empty tree'
+            raise ValueError(msg)
+
+        if self.is_empty():
+            self._nodes[key] = _Node(value)
+            self.root_key = key
+            return
+
         parent = parent if parent is not EMPTY else self.root_key
         self._verify_absent(key)
         self._verify_present(parent)
