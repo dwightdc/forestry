@@ -9,7 +9,6 @@ pytest-cov = "*"
 twine = "*"
 
 [packages]
-forestry = {editable = true,path = "."}
 
 [requires]
 python_version = "3.7"
