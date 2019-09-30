@@ -10,7 +10,7 @@ setup(
     # This name that you pip/pipenv install
     # Also the name that appears in the top banner with version
     name='forestry',
-    version='0.0.1',
+    version='0.0.2',  # Removed Forestry from Pipfile
     # Identifies the code base by identifying the top level packages
     packages=['forestry'],
     # Appears in project links
